@@ -14,6 +14,7 @@ import Numeric
 import qualified Data.Text as T
 import qualified Data.Map as Map
 import Text.Blaze.Html
+import qualified Profiteur.Core as Profiteur
 
 data Header =
   Header
@@ -70,6 +71,7 @@ data ProfData = ProfData { profHeader :: Header
                          , profTickyCounters :: Map TickyCounterId TickyCounter
                          , profTickySamples  :: [TickySample]
                          , profTotalAllocations :: Word64
+                         , profNodeMap :: Maybe Profiteur.NodeMap
                          } deriving Show
 
 newtype TickyCounterId = TickyCounterId Word64 deriving (Ord, Eq, Show)
@@ -138,6 +140,7 @@ data EventlogType =
         { eventlogHeader       :: Header
         , eventlogHeapProfile  :: Maybe HeapProfileData
         , eventlogTickyProfile :: Maybe TickyProfileData
+        , eventlogNodeMap      :: Maybe Profiteur.NodeMap
         }
 
 data HeapProfileData = HeapProfileData Value (Maybe Value) (Maybe Html)

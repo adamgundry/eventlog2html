@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
 module Eventlog.HtmlTemplate where
 
 import Data.Aeson (Value, encode)
@@ -13,7 +15,7 @@ import qualified Data.Text.Lazy as TL
 --import Text.Blaze.Html
 import Text.Blaze.Html5            as H
 import Text.Blaze.Html5.Attributes as A
-import Text.Blaze.Html.Renderer.String
+import Text.Blaze.Html.Renderer.Pretty
 
 import Data.FileEmbed
 import Eventlog.Data
@@ -29,6 +31,8 @@ import Paths_eventlog2html
 import Data.Version
 import Control.Monad
 import Data.Maybe
+import qualified Profiteur.Core as Profiteur
+import qualified Profiteur.Renderer as Profiteur
 
 insertJsonData :: Value -> Html
 insertJsonData dat = preEscapedToHtml $ T.unlines [
@@ -80,7 +84,10 @@ jsScript url = script ! src (fromString $ url) $ ""
 css :: AttributeValue -> Html
 css url = link ! rel "stylesheet" ! href url
 
-htmlHeader :: Maybe HeapProfileData -> Maybe TickyProfileData -> Args -> Html
+htmlHeader :: Maybe HeapProfileData
+           -> Maybe TickyProfileData
+           -> Args
+           -> Html
 htmlHeader mb_hpd mb_ticky as =
     H.head $ do
     H.title "eventlog2html - Heap Profile"
@@ -107,6 +114,9 @@ htmlHeader mb_hpd mb_ticky as =
           script $ preEscapedToHtml datatablesButtons
           script $ preEscapedToHtml datatablesHtml5
           H.style $ preEscapedToHtml imagesCSS
+        --mconcat $ Profiteur._CssAssets pdCssAssets
+        --mconcat $ Profiteur._JsAssets pdJsAssets
+        --Profiteur.encodedProfToHtml cannedProfJson
       else do
         jsScript popperURL
         jsScript vegaURL
@@ -130,18 +140,21 @@ htmlHeader mb_hpd mb_ticky as =
   where
     has_ticky = isJust mb_ticky
 
-template :: Header -> Maybe HeapProfileData -> Maybe TickyProfileData -> Args -> [TabGroup] -> Html
-template header' x y as tab_groups = docTypeHtml $ do
+template :: EventlogType
+         -> Args
+         -> [TabGroup]
+         -> Html
+template (EventlogType header' x y _) as tab_groups = docTypeHtml $ do
   H.stringComment $ "Generated with eventlog2html-" <> showVersion version
   htmlHeader x y as
-  body $ H.div ! class_ "container-fluid" $ do
+  body $ H.div ! class_ "container-fluid vh-100" $ do
     H.div ! class_ "row" $ navbar tab_groups
-    H.div ! class_ "row" $ do
+    H.div ! class_ "row h-100" $ do
       H.div ! class_ "col tab-content custom-tab" $ do
         forM_ tab_groups $ \group -> do
           case group of
-            SingleTab tab -> renderTab header' tab
-            ManyTabs _ tabs -> mapM_ (renderTab header') tabs
+            SingleTab tab    -> renderTab header' tab
+            ManyTabs _ mtabs -> mapM_ (renderTab header') mtabs
 
     script $ preEscapedToHtml tablogic
 
@@ -204,9 +217,12 @@ renderChartWithJson itd ct k dat vegaSpec = do
     renderChart itd ct True k vegaSpec
 
 
-templateString :: Header -> Maybe HeapProfileData -> Maybe TickyProfileData -> Args -> String
-templateString h x y as =
-  renderHtml $ template h x y as $ allTabs h x y as
+templateString :: EventlogType
+               -> Args
+               -> ProfiteurData
+               -> String
+templateString x as pd =
+  renderHtml $ template x as $ allTabs x as pd
 
 
 ppHeapProfileType :: HeapProfBreakdown -> Text
@@ -220,11 +236,15 @@ ppHeapProfileType (HeapProfBreakdownClosureType) = "Basic heap profile (implied 
 ppHeapProfileType (HeapProfBreakdownInfoTable) = "Info table profile (implied by -hi)"
 
 
-allTabs :: Header -> Maybe HeapProfileData -> Maybe TickyProfileData -> Args -> [TabGroup]
-allTabs h x y as =
+allTabs :: EventlogType
+        -> Args
+        -> ProfiteurData
+        -> [TabGroup]
+allTabs (EventlogType h x y z) as pd =
     [SingleTab (metaTab h as)] ++
     maybe [] (allHeapTabs h as) x ++
-    [tickyProfileTabs y]
+    [tickyProfileTabs y] ++
+    [profiteurTab pd z]
 
 metaTab :: Header -> Args -> Tab
 metaTab header' _as =
@@ -308,3 +328,22 @@ tickyProfileTabs = SingleTab . mkOptionalTab "Ticky" "ticky" tickyTab noDocs noT
 
 noTickyDocs :: Html
 noTickyDocs = H.div $ preEscapedToHtml $ T.decodeUtf8 $(embedFile "inline-docs/no-ticky.html")
+
+profiteurTab :: ProfiteurData -> Maybe Profiteur.NodeMap -> TabGroup
+profiteurTab ProfiteurData{..} mb_node_map =
+  SingleTab $ mkOptionalTab "Profiteur" "profiteur" cannedProfiteur noDocs noProfiteurDocs mb_node_map
+  where
+    --cannedProfiteur :: Html
+    --cannedProfiteur = H.preEscapedToHtml T.empty -- pdBodyContent
+    cannedProfiteur node_map =
+      H.iframe ! A.id "profiteur-iframe"
+               ! A.srcdoc ( fromString $ renderHtml $ Profiteur.reportToHtml "rncryptor-test.prof"
+                                 pdJsAssets
+                                 pdCssAssets
+                                 node_map)
+               ! A.width "100%"
+               ! A.height "100%"
+               $ mempty
+
+noProfiteurDocs :: Html
+noProfiteurDocs = H.div $ preEscapedToHtml $ T.decodeUtf8 $(embedFile "inline-docs/no-profiteur.html")

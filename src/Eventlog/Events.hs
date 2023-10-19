@@ -35,6 +35,10 @@ import Data.Functor.Identity
 import qualified Data.Text.Lazy.Encoding as TE
 import qualified Data.Text.Lazy as TL
 import Data.Aeson
+import qualified Profiteur.Core as Profiteur
+import qualified Profiteur.Parser as Profiteur
+import qualified GHC.Events2Prof as Ev2Prof
+
 
 
 type PartialHeader = Int -> Header
@@ -45,7 +49,7 @@ fromNano e = fromIntegral e * 1e-9
 
 chunk :: Args -> FilePath -> IO ProfData
 chunk a f = do
-  (EventLog _ e) <- either error id <$> readEventLogFromFile f
+  el@(EventLog _ e) <- either error id <$> readEventLogFromFile f
   (ph, bucket_map, ccMap, frames, traces, ipes, hdata, ticky_counters, ticky_samples, total_allocs) <- eventsToHP a e
   let (counts, totals) = total frames
       -- If both keys are present, combine
@@ -60,7 +64,9 @@ chunk a f = do
 
       binfo = merge (traverseMissing combineMissingTotal) (traverseMissing combineMissingDesc) combine bucket_map totals
 
-  return $ (ProfData (ph counts) binfo ccMap frames traces hdata ipes ticky_counters ticky_samples total_allocs)
+      nodeMap = fmap Profiteur.nodeMapFromCostCentre . Profiteur.profileToCostCentre . Ev2Prof.eventlogToProfile $ el
+
+  return $ ProfData (ph counts) binfo ccMap frames traces hdata ipes ticky_counters ticky_samples total_allocs (either (const Nothing) Just nodeMap)
 
 checkGHCVersion :: EL -> Maybe Text
 checkGHCVersion EL { ident = Just (version,_)}

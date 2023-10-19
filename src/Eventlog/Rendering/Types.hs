@@ -6,6 +6,13 @@ import Data.Char
 import Data.String
 import qualified Data.Text as T
 import Text.Blaze.Html5
+import Profiteur.Renderer as Profiteur
+
+data ProfiteurData
+  = ProfiteurData
+  { pdCssAssets   :: Profiteur.CssAssets
+  , pdJsAssets    :: Profiteur.JsAssets
+  }
 
 data IncludeTraceData
   = TraceData

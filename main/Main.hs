@@ -66,7 +66,6 @@ doOneJson a fin fout = do
 doOneHtml :: Args -> FilePath -> FilePath -> IO ()
 doOneHtml a fin fout = do
   prof_type <- generateJsonValidate checkTraces fin a
-  let h = eventlogHeader prof_type
 
   -- gather canned profiteur data
   let jsAssetsFiles = [
@@ -87,7 +86,7 @@ doOneHtml a fin fout = do
   pdCssAssets   <- Profiteur.CssAssets <$> forM ["data/css/main.css"] Profiteur.includeCss
   let profiteurData = ProfiteurData{..}
 
-  let html = templateString h (eventlogHeapProfile prof_type) (eventlogTickyProfile prof_type) a profiteurData
+  let html = templateString prof_type a profiteurData
   writeFile fout html
   where
     checkTraces :: ProfData -> IO ()

@@ -5,7 +5,7 @@ $(document).ready(function () {
 
     $("#profiteur-tab").on("shown.bs.tab", function (e) {
         var iFrame = document.getElementById( "profiteur-iframe" );
-        resizeIFrameToFitContent( iFrame );
+        if (iFrame) resizeIFrameToFitContent( iFrame );
     });
 });
 

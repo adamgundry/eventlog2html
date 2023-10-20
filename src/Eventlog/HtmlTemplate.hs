@@ -11,7 +11,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Encoding as TL
 import qualified Data.Text.Lazy as TL
---import Text.Blaze.Html
 import Text.Blaze.Html5            as H
 import Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.Pretty
@@ -26,12 +25,12 @@ import Eventlog.Rendering.Types
 import Eventlog.VegaTemplate
 import Eventlog.AssetVersions
 import Eventlog.Ticky (tickyTab)
+import Eventlog.Rendering.Profiteur (embedProfiteurIframe)
 import Paths_eventlog2html
 import Data.Version
 import Control.Monad
 import Data.Maybe
 import qualified Profiteur.Core as Profiteur
-import qualified Profiteur.Renderer as Profiteur
 
 insertJsonData :: Value -> Html
 insertJsonData dat = preEscapedToHtml $ T.unlines [
@@ -213,12 +212,9 @@ renderChartWithJson itd ct k dat vegaSpec = do
     renderChart itd ct True k vegaSpec
 
 
-templateString :: EventlogType
-               -> Args
-               -> ProfiteurData
-               -> String
-templateString x as pd =
-  renderHtml $ template x as $ allTabs x as pd
+templateString :: EventlogType -> Args -> String
+templateString x as =
+  renderHtml $ template x as $ allTabs x as
 
 
 ppHeapProfileType :: HeapProfBreakdown -> Text
@@ -232,15 +228,12 @@ ppHeapProfileType (HeapProfBreakdownClosureType) = "Basic heap profile (implied 
 ppHeapProfileType (HeapProfBreakdownInfoTable) = "Info table profile (implied by -hi)"
 
 
-allTabs :: EventlogType
-        -> Args
-        -> ProfiteurData
-        -> [TabGroup]
-allTabs (EventlogType h x y z) as pd =
+allTabs :: EventlogType -> Args -> [TabGroup]
+allTabs (EventlogType h x y z) as =
     [SingleTab (metaTab h as)] ++
     maybe [] (allHeapTabs h as) x ++
     [tickyProfileTabs y] ++
-    [profiteurTab pd z]
+    [profiteurTab z]
 
 metaTab :: Header -> Args -> Tab
 metaTab header' _as =
@@ -325,21 +318,9 @@ tickyProfileTabs = SingleTab . mkOptionalTab "Ticky" "ticky" tickyTab noDocs noT
 noTickyDocs :: Html
 noTickyDocs = H.div $ preEscapedToHtml $ T.decodeUtf8 $(embedFile "inline-docs/no-ticky.html")
 
-profiteurTab :: ProfiteurData -> Maybe Profiteur.NodeMap -> TabGroup
-profiteurTab ProfiteurData{..} mb_node_map =
-  SingleTab $ mkOptionalTab "Profiteur" "profiteur" cannedProfiteur noDocs noProfiteurDocs mb_node_map
-  where
-    --cannedProfiteur :: Html
-    --cannedProfiteur = H.preEscapedToHtml T.empty -- pdBodyContent
-    cannedProfiteur node_map =
-      H.iframe ! A.id "profiteur-iframe"
-               ! A.srcdoc ( fromString $ renderHtml $ Profiteur.reportToHtml "rncryptor-test.prof"
-                                 pdJsAssets
-                                 pdCssAssets
-                                 node_map)
-               ! A.width "100%"
-               ! A.height "100%"
-               $ mempty
+profiteurTab :: Maybe Profiteur.NodeMap -> TabGroup
+profiteurTab mb_node_map =
+  SingleTab $ mkOptionalTab "Profiteur" "profiteur" embedProfiteurIframe noDocs noProfiteurDocs mb_node_map
 
 noProfiteurDocs :: Html
 noProfiteurDocs = H.div $ preEscapedToHtml $ T.decodeUtf8 $(embedFile "inline-docs/no-profiteur.html")

@@ -10,6 +10,7 @@ $(document).ready(function () {
 });
 
 var resizeIFrameToFitContent = function( iFrame ) {
-
-    iFrame.height = $(".container-fluid").height();
+     // Set the iframe to be ~90% of the visible height.
+    var domHeight = $(".container-fluid").height();
+    iFrame.height = domHeight - (domHeight * 0.10);
 };

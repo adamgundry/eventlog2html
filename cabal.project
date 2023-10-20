@@ -4,7 +4,7 @@ packages: .
 source-repository-package
     type: git
     location: git@github.com:adinapoli/profiteur.git
-    tag: f86e18e0c103719b2128413d875e38aa10f27698
+    tag: a1114ccb18bf1a2dbcec74bc41d64a4d9cd3675c
 
 source-repository-package
     type: git

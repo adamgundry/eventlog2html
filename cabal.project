@@ -3,10 +3,5 @@ packages: .
 
 source-repository-package
     type: git
-    location: git@github.com:adinapoli/profiteur.git
-    tag: a1114ccb18bf1a2dbcec74bc41d64a4d9cd3675c
-
-source-repository-package
-    type: git
     location: git@github.com:phadej/ghc-events2prof
     tag: 3581ac913dfd5d51340e9b46a5ac7c4ad3af062d

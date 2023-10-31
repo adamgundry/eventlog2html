@@ -10,7 +10,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Encoding as TL
 import qualified Data.Text.Lazy as TL
---import Text.Blaze.Html
 import Text.Blaze.Html5            as H
 import Text.Blaze.Html5.Attributes as A
 import Text.Blaze.Html.Renderer.String
@@ -25,10 +24,12 @@ import Eventlog.Rendering.Types
 import Eventlog.VegaTemplate
 import Eventlog.AssetVersions
 import Eventlog.Ticky (tickyTab)
+import Eventlog.Rendering.Profiteur (embedProfiteurIframe)
 import Paths_eventlog2html
 import Data.Version
 import Control.Monad
 import Data.Maybe
+import qualified Profiteur.Core as Profiteur
 
 insertJsonData :: Value -> Html
 insertJsonData dat = preEscapedToHtml $ T.unlines [
@@ -134,17 +135,17 @@ template :: EventlogType
          -> Args
          -> [TabGroup]
          -> Html
-template (EventlogType header' x y) as tab_groups = docTypeHtml $ do
+template (EventlogType header' x y _) as tab_groups = docTypeHtml $ do
   H.stringComment $ "Generated with eventlog2html-" <> showVersion version
   htmlHeader x y as
-  body $ H.div ! class_ "container-fluid" $ do
+  body $ H.div ! class_ "container-fluid vh-100" $ do
     H.div ! class_ "row" $ navbar tab_groups
-    H.div ! class_ "row" $ do
+    H.div ! class_ "row h-100" $ do
       H.div ! class_ "col tab-content custom-tab" $ do
         forM_ tab_groups $ \group -> do
           case group of
-            SingleTab tab -> renderTab header' tab
-            ManyTabs _ tabs -> mapM_ (renderTab header') tabs
+            SingleTab tab    -> renderTab header' tab
+            ManyTabs _ mtabs -> mapM_ (renderTab header') mtabs
 
     script $ preEscapedToHtml tablogic
 
@@ -228,10 +229,11 @@ ppHeapProfileType (HeapProfBreakdownInfoTable) = "Info table profile (implied by
 allTabs :: EventlogType
         -> Args
         -> [TabGroup]
-allTabs (EventlogType h x y) as =
+allTabs (EventlogType h x y z) as =
     [SingleTab (metaTab h as)] ++
     maybe [] (allHeapTabs h as) x ++
-    [tickyProfileTabs y]
+    [tickyProfileTabs y] ++
+    [profiteurTab z]
 
 metaTab :: Header -> Args -> Tab
 metaTab header' _as =
@@ -315,3 +317,10 @@ tickyProfileTabs = SingleTab . mkOptionalTab "Ticky" "ticky" tickyTab noDocs noT
 
 noTickyDocs :: Html
 noTickyDocs = H.div $ preEscapedToHtml $ T.decodeUtf8 $(embedFile "inline-docs/no-ticky.html")
+
+profiteurTab :: Maybe Profiteur.NodeMap -> TabGroup
+profiteurTab mb_node_map =
+  SingleTab $ mkOptionalTab "Profiteur" "profiteur" embedProfiteurIframe noDocs noProfiteurDocs mb_node_map
+
+noProfiteurDocs :: Html
+noProfiteurDocs = H.div $ preEscapedToHtml $ T.decodeUtf8 $(embedFile "inline-docs/no-profiteur.html")

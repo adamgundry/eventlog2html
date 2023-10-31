@@ -28,7 +28,7 @@ import Eventlog.Detailed
 import Eventlog.Ticky
 
 generateJsonData :: Args -> ProfData -> HeapProfileData
-generateJsonData a (ProfData h binfo ccMap fs traces heap_info ipes _ticky_counter _ticky_samples _total_allocs) =
+generateJsonData a (ProfData h binfo ccMap fs traces heap_info ipes _ticky_counter _ticky_samples _total_allocs _node_map) =
   let keeps = pruneBands a binfo
       bs = bands h (Map.map fst keeps) fs
       combinedJson = object [
@@ -78,6 +78,7 @@ generateJsonValidate validate file a = do
                       (Just (generateJsonData a dat))
                       (if not (null (profTickySamples dat)) then Just (generateTickyData dat) else Nothing)
                       -- If there are any ticky samples then generate a ticky profile
+                      (profNodeMap dat)
 
 generateTickyData :: ProfData -> TickyProfileData
 generateTickyData dat =
